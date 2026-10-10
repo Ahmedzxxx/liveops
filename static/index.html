@@ -1,0 +1,2630 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveOps Commander | Workforce Management & Scheduling</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #f8fafc; }
+        .glass-header { background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(8px); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- ============================================== -->
+    <!-- LOGIN SCREEN -->
+    <!-- ============================================== -->
+    <div id="loginSection" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 border border-slate-100">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/30 mb-4">
+                    <i class="fa-solid fa-headset text-3xl"></i>
+                </div>
+                <h1 class="text-2xl font-black text-slate-900 tracking-tight">LiveOps Commander</h1>
+                <p class="text-xs text-slate-500 mt-1">Workforce Scheduling, Queue Protection & Time Tracking</p>
+            </div>
+
+            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Agent Code</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-id-badge absolute left-3 top-3.5 text-slate-400"></i>
+                        <input type="text" id="loginCode" required placeholder="e.g. RN-101 or ADMIN-01" 
+                            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Password</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3 top-3.5 text-slate-400"></i>
+                        <input type="password" id="loginPassword" required placeholder="••••••••" 
+                            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                </div>
+
+                <div id="loginError" class="hidden p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span id="loginErrorText">Invalid agent code or password</span>
+                </div>
+
+                <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md shadow-blue-500/25 transition flex items-center justify-center gap-2">
+                    Sign In <i class="fa-solid fa-arrow-right text-xs"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- MAIN APPLICATION CONTAINER -->
+    <!-- ============================================== -->
+    <div id="appContainer" class="hidden flex-1 flex flex-col">
+        <!-- TOP NAVBAR -->
+        <header class="glass-header sticky top-0 z-30 border-b border-slate-200/80 px-6 py-3.5 flex items-center justify-between shadow-sm">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/20">
+                    <i class="fa-solid fa-satellite-dish text-lg"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <h2 class="text-lg font-black text-slate-900 tracking-tight">LiveOps Operations Board</h2>
+                        <span id="queueModeBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Queue Active (5/5)
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-500 font-medium" id="currentLiveTime">Loading date & time...</p>
+                </div>
+            </div>
+
+            <!-- USER INFO & LOGOUT -->
+            <div class="flex items-center gap-3">
+                <div class="text-right hidden sm:block">
+                    <p class="text-sm font-bold text-slate-800" id="userNameDisplay">--</p>
+                    <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono font-medium" id="userRoleDisplay">Agent</span>
+                </div>
+                <!-- NOTIFICATION BELL & DROPDOWN -->
+                <div class="relative">
+                    <button onclick="toggleNotificationDropdown()" id="notifBellBtn" title="Notifications & Approvals" class="relative w-9 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-blue-600 flex items-center justify-center transition shadow-sm">
+                        <i class="fa-solid fa-bell"></i>
+                        <span id="notifBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center shadow-md animate-pulse">0</span>
+                    </button>
+                    <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100">
+                        <div class="p-3.5 bg-slate-50 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-bell text-blue-600 text-xs"></i>
+                                <h4 class="text-xs font-bold text-slate-800">Notifications & Updates</h4>
+                            </div>
+                            <span id="notifCountLabel" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">0 New</span>
+                        </div>
+                        <div id="notifListContainer" class="max-h-80 overflow-y-auto custom-scrollbar p-2 space-y-1.5 text-xs">
+                            <!-- Injected notifications -->
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="openChangePasswordModal()" title="Change Your Password" class="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition shadow-sm">
+                    <i class="fa-solid fa-key text-blue-600"></i> Change Password
+                </button>
+                <button onclick="handleLogout()" title="Sign Out" class="w-9 h-9 rounded-xl border border-slate-200 bg-white hover:bg-red-50 hover:text-red-600 text-slate-600 flex items-center justify-center transition shadow-sm">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- SUBNAV TABS -->
+        <nav class="bg-white border-b border-slate-200 px-6 py-2 flex items-center justify-between overflow-x-auto custom-scrollbar">
+            <div class="flex items-center gap-2">
+                <button onclick="switchTab('live')" id="tabBtn_live" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-blue-50 text-blue-700">
+                    <i class="fa-solid fa-chart-line"></i> Live Queue
+                </button>
+                <button onclick="switchTab('schedule')" id="tabBtn_schedule" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-600 hover:bg-slate-50">
+                    <i class="fa-solid fa-calendar-days"></i> Master Schedule
+                </button>
+                <button onclick="switchTab('requests')" id="tabBtn_requests" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-600 hover:bg-slate-50">
+                    <i class="fa-solid fa-code-pull-request"></i> Requests & Permissions
+                    <span id="requestsCountBadge" class="hidden px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px]">0</span>
+                </button>
+                <button onclick="switchTab('holidays')" id="tabBtn_holidays" class="tab-btn hidden px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-600 hover:bg-slate-50">
+                    <i class="fa-solid fa-flag"></i> Official Holidays
+                </button>
+                <button onclick="switchTab('team')" id="tabBtn_team" class="tab-btn hidden px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-600 hover:bg-slate-50">
+                    <i class="fa-solid fa-users-gear"></i> Team & Passwords
+                </button>
+                <button onclick="switchTab('reports')" id="tabBtn_reports" class="tab-btn hidden px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-600 hover:bg-slate-50">
+                    <i class="fa-solid fa-sliders"></i> Reports & Settings
+                </button>
+            </div>
+
+            <!-- MANAGER EMERGENCY CONTROLS -->
+            <div id="managerControlsSection" class="hidden flex items-center gap-2 pr-2">
+                <button onclick="toggleQueueMode()" id="meetingModeToggleBtn" class="px-3.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold flex items-center gap-2 transition shadow-sm">
+                    <i class="fa-solid fa-bullhorn text-amber-600"></i> Pause Queue for Meeting / Emergency
+                </button>
+            </div>
+        </nav>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 p-6 max-w-7xl mx-auto w-full">
+
+            <!-- TOP NOTIFICATION BANNER FOR PEER SWAP APPROVAL -->
+            <div id="peerSwapAlertContainer" class="space-y-3 mb-6"></div>
+
+            <!-- ============================================== -->
+            <!-- TAB 1: LIVE QUEUE BOARD -->
+            <!-- ============================================== -->
+            <div id="tabContent_live" class="tab-content space-y-6">
+                <!-- TOP METRICS CARDS -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Queue Target</p>
+                            <h3 class="text-2xl font-black text-slate-900 mt-1">5 <span class="text-xs font-semibold text-slate-400">Agents</span></h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-headset"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Active On Queue</p>
+                            <h3 class="text-2xl font-black text-emerald-600 mt-1" id="metricActiveQueue">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">On Break</p>
+                            <h3 class="text-2xl font-black text-amber-600 mt-1" id="metricActiveBreak">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-mug-saucer"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Scheduled Day Off</p>
+                            <h3 class="text-2xl font-black text-slate-600 mt-1" id="metricOffToday">1</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-umbrella-beach"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AGENT QUICK PUNCH & ACTION BAR (FOR CURRENT USER) -->
+                <div class="bg-gradient-to-r from-blue-900 to-indigo-900 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded-full bg-white/10 text-blue-200 text-xs font-bold">Agent Daily Portal</span>
+                            <span class="text-xs text-blue-200">Standard Shift: 10:00 AM - 7:00 PM (1h Break)</span>
+                        </div>
+                        <h2 class="text-2xl font-black mt-1" id="agentPunchWelcome">Welcome, loading status...</h2>
+                        <p class="text-xs text-blue-200/80 mt-1" id="agentPunchStatusDetails">Clock in to begin duty on the queue.</p>
+                        <div id="agentActionBarLiveCounter" class="mt-2 inline-flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 text-xs font-mono"></div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3" id="agentActionButtonsContainer">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- LIVE AGENTS STATUS GRID -->
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 id="liveAdherenceTitle" class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-users text-blue-600"></i> Live Team Queue Adherence
+                        </h3>
+                        <span class="text-xs text-slate-400">Auto-refreshes every 10 seconds</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="liveAgentsGrid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================== -->
+            <!-- TAB 2: MASTER TEAM SCHEDULE (ROSTER) -->
+            <!-- ============================================== -->
+            <div id="tabContent_schedule" class="tab-content hidden space-y-6">
+                <!-- SCHEDULE CONTROLS -->
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <button onclick="changeWeek(-1)" class="w-10 h-10 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-700 transition">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <div>
+                            <h3 class="text-base font-black text-slate-900" id="rosterWeekTitle">Week: Sunday to Saturday</h3>
+                            <p class="text-xs text-slate-500">6-Week Fair Rotation Engine | Friday is Fixed Off for All</p>
+                        </div>
+                        <button onclick="changeWeek(1)" class="w-10 h-10 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-700 transition">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="jumpToCurrentWeek()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+                            <i class="fa-solid fa-calendar-day mr-1"></i> Current Week
+                        </button>
+                        <div id="managerDirectOverrideInfo" class="hidden">
+                            <span class="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-hand-pointer text-amber-600"></i> Click any day cell to edit/swap shift
+                            </span>
+                        </div>
+                        <button onclick="openSwapModal()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrow-right-arrow-left"></i> Request Swap
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MASTER ROSTER GRID TABLE -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse min-w-[850px]">
+                            <thead>
+                                <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
+                                    <th class="p-4 w-48 text-left">Agent Name</th>
+                                    <th class="p-3 text-center">Sunday <span class="block text-[10px] text-blue-200 font-normal" id="th_date_0">--</span></th>
+                                    <th class="p-3 text-center">Monday <span class="block text-[10px] text-blue-200 font-normal" id="th_date_1">--</span></th>
+                                    <th class="p-3 text-center">Tuesday <span class="block text-[10px] text-blue-200 font-normal" id="th_date_2">--</span></th>
+                                    <th class="p-3 text-center">Wednesday <span class="block text-[10px] text-blue-200 font-normal" id="th_date_3">--</span></th>
+                                    <th class="p-3 text-center">Thursday <span class="block text-[10px] text-blue-200 font-normal" id="th_date_4">--</span></th>
+                                    <th class="p-3 text-center bg-blue-950">Friday <span class="block text-[10px] text-blue-200 font-normal" id="th_date_5">--</span></th>
+                                    <th class="p-3 text-center">Saturday <span class="block text-[10px] text-blue-200 font-normal" id="th_date_6">--</span></th>
+                                </tr>
+                                <!-- Daily Queue Count Row -->
+                                <tr class="bg-slate-100 text-slate-700 text-xs font-bold border-b border-slate-200" id="queueSummaryRow">
+                                    <td class="p-3 text-left text-xs font-black text-slate-600">Daily Queue Strength:</td>
+                                </tr>
+                            </thead>
+                            <tbody id="rosterTableBody" class="divide-y divide-slate-100 text-sm">
+                                <!-- Injected rows per agent -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================== -->
+            <!-- TAB 3: SWAPS, EXCUSES & ANNUAL LEAVES -->
+            <!-- ============================================== -->
+            <div id="tabContent_requests" class="tab-content hidden space-y-6">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900">Shift Swaps, Excuses & Annual Leaves</h3>
+                        <p class="text-xs text-slate-500">Request shift trades, emergency permissions, or scheduled leaves</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="openSwapModal()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-repeat"></i> New Shift Swap
+                        </button>
+                        <button onclick="openExcuseModal()" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-clock"></i> Submit Excuse
+                        </button>
+                        <button onclick="openLeaveModal()" class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-plane-departure"></i> Request Leave
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- 1. SWAP REQUESTS CARD -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-right-left text-blue-600"></i> Day-Off & Shift Swaps
+                            </h4>
+                        </div>
+                        <div id="swapsListContainer" class="space-y-3">
+                            <!-- Injected Swaps -->
+                        </div>
+                    </div>
+
+                    <!-- 2. EXCUSES REQUESTS CARD -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-user-clock text-indigo-600"></i> Official Excuses
+                            </h4>
+                        </div>
+                        <div id="excusesListContainer" class="space-y-3">
+                            <!-- Injected Excuses -->
+                        </div>
+                    </div>
+
+                    <!-- 3. ANNUAL & OFFICIAL LEAVES CARD -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-plane-departure text-teal-600"></i> Annual & Official Leaves
+                            </h4>
+                        </div>
+                        <div id="leavesListContainer" class="space-y-3">
+                            <!-- Injected Leaves -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- ============================================== -->
+            <!-- TAB 4: TEAM MANAGEMENT & PASSWORDS -->
+            <!-- ============================================== -->
+            <div id="tabContent_team" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900">Team Credentials & Access Control</h3>
+                        <p class="text-xs text-slate-500">Live password visibility and account management for Manager</p>
+                    </div>
+                    <div id="adminTeamActionBtn" class="hidden">
+                        <button onclick="openAddAgentModal()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-plus"></i> Add New Agent
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AGENTS TABLE CARD -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
+                                <th class="p-4">Agent Name</th>
+                                <th class="p-4">Login Code</th>
+                                <th class="p-4">Current Password</th>
+                                <th class="p-4">Role</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teamTableBody" class="divide-y divide-slate-100 text-sm">
+                            <!-- Injected Agents -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- SELF PASSWORD CHANGE CARD -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 max-w-lg">
+                    <h4 class="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-key text-blue-600"></i> Change Your Password
+                    </h4>
+                    <form onsubmit="handleSelfPasswordChange(event)" class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-slate-600 mb-1 font-semibold">Current Password</label>
+                            <input type="password" id="selfOldPass" required class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-600 mb-1 font-semibold">New Password</label>
+                            <input type="password" id="selfNewPass" required class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm">
+                            Update Password
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ============================================== -->
+            <!-- TAB 4: OFFICIAL EGYPT HOLIDAYS (CLEAN TAB) -->
+            <!-- ============================================== -->
+            <div id="tabContent_holidays" class="tab-content hidden space-y-6">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                        <div>
+                            <h4 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-flag text-red-600"></i> Egypt Official Public Holidays (2026)
+                            </h4>
+                            <p class="text-xs text-slate-500">Official national holidays eligible for pay multipliers on active shifts</p>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs font-bold">
+                            <span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">2x Double Pay (National)</span>
+                            <span class="px-2.5 py-1 rounded-full bg-pink-100 text-pink-800 border border-pink-200">3x Triple Pay (Major Eids)</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="holidaysListGrid">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================== -->
+            <!-- TAB 5: MANAGER REPORTS & SETTINGS (MANAGER ONLY) -->
+            <!-- ============================================== -->
+            <div id="tabContent_reports" class="tab-content hidden space-y-6">
+                <!-- EXCEL EXPORT CARD -->
+                <div class="bg-gradient-to-r from-emerald-800 to-teal-800 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded-full bg-white/20 text-emerald-100 text-xs font-bold">HR & Payroll Ready</span>
+                            <span class="text-xs text-emerald-200">On-Demand Official Excel Export</span>
+                        </div>
+                        <h2 class="text-xl font-black mt-2">Export Monthly Operations Report (.xlsx)</h2>
+                        <p class="text-xs text-emerald-100/80 mt-1 max-w-xl">
+                            Includes actual worked hours, uncompensated lates, compensated makeup hours, 2x Double Pay days for National Holidays, and 3x Triple Pay days for Major Eids.
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-3 bg-white/10 p-3 rounded-2xl border border-white/20">
+                        <select id="exportYear" class="bg-slate-900/60 text-white text-xs font-bold rounded-xl px-3 py-2 border border-white/20 focus:outline-none">
+                            <option value="2026">2026</option>
+                            <option value="2025">2025</option>
+                            <option value="2027">2027</option>
+                        </select>
+                        <select id="exportMonth" class="bg-slate-900/60 text-white text-xs font-bold rounded-xl px-3 py-2 border border-white/20 focus:outline-none">
+                            <option value="10">October (10)</option>
+                            <option value="11">November (11)</option>
+                            <option value="12">December (12)</option>
+                            <option value="1">January (1)</option>
+                            <option value="2">February (2)</option>
+                            <option value="3">March (3)</option>
+                            <option value="4">April (4)</option>
+                            <option value="5">May (5)</option>
+                            <option value="6">June (6)</option>
+                            <option value="7">July (7)</option>
+                            <option value="8">August (8)</option>
+                            <option value="9">September (9)</option>
+                        </select>
+                        <button onclick="downloadExcelReport()" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl text-xs transition shadow-lg flex items-center gap-2">
+                            <i class="fa-solid fa-file-excel"></i> Download Excel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TELEGRAM BOT SETTINGS CARD -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 max-w-2xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center text-xl">
+                                <i class="fa-brands fa-telegram"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-900">Telegram Bot Notifications (@Liveop_bot)</h4>
+                                <p class="text-xs text-slate-500">Instant approval notifications for shift swaps, excuses, and leaves</p>
+                            </div>
+                        </div>
+                        <span id="telegramConnectionBadge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span> Bot Token Linked
+                        </span>
+                    </div>
+
+                    <div class="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl text-xs text-blue-900 space-y-2">
+                        <div class="font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-wand-magic-sparkles text-blue-600"></i> Fast 1-Click Auto-Pairing:
+                        </div>
+                        <p class="text-blue-800 leading-relaxed">
+                            Open chat with <strong>@Liveop_bot</strong> and click <strong>Start</strong> to link your Telegram account automatically.
+                        </p>
+                        <div class="pt-1">
+                            <a href="https://t.me/Liveop_bot" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-md shadow-blue-500/20 transition">
+                                <i class="fa-brands fa-telegram text-sm"></i> Open @Liveop_bot on Telegram & Click Start
+                            </a>
+                        </div>
+                    </div>
+
+                    <form onsubmit="handleSaveSettings(event)" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Telegram Bot Token</label>
+                            <input type="text" id="settingBotToken" placeholder="e.g. 123456789:ABCdefGhIJKlmNoPQRstuVWXyz" 
+                                class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Manager Chat ID (Auto-filled on /start)</label>
+                            <input type="text" id="settingChatId" placeholder="Will be filled automatically when you press Start on the bot" 
+                                class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm">
+                                Save Settings
+                            </button>
+                            <button type="button" onclick="handleTestTelegram()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-paper-plane"></i> Send Test Notification to My Phone
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+
+        </main>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- MODALS -->
+    <!-- ============================================== -->
+
+    <!-- MANAGER SCHEDULE OVERRIDE / DIRECT SWAP MODAL -->
+    <div id="overrideModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <h3 class="text-base font-black text-slate-900 mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-blue-600"></i> تعديل الشفت والإجازة (Manager Schedule Control)
+            </h3>
+            <p class="text-xs text-slate-500 mb-4" id="overrideModalSub">إلغاء إجازة أو تعيينها أو نقلها أو تبديلها مع زميل مباشرة</p>
+
+            <form onsubmit="handleSaveOverride(event)" class="space-y-4">
+                <input type="hidden" id="overrideAgentId">
+                <input type="hidden" id="overrideDate">
+
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+                    <div><span class="text-slate-400">الموظف (Agent):</span> <strong id="overrideAgentName" class="text-slate-800">--</strong></div>
+                    <div><span class="text-slate-400">التاريخ (Date):</span> <strong id="overrideDateDisplay" class="text-slate-800">--</strong></div>
+                    <div><span class="text-slate-400">الحالة الحالية (Current):</span> <strong id="overrideCurrentStatus" class="text-blue-600">--</strong></div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-700 uppercase">اختر الإجراء المطلوب (Select Action)</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs font-semibold">
+                            <input type="radio" name="overrideActionType" value="set_work" onchange="toggleOverrideActionFields()">
+                            <span>🟢 تشغيل في هذا اليوم / إلغاء الإجازة (On Duty: 10:00 - 19:00)</span>
+                        </label>
+                        <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs font-semibold">
+                            <input type="radio" name="overrideActionType" value="set_off" onchange="toggleOverrideActionFields()">
+                            <span>🏖️ تعيين هذا اليوم كإجازة للموظف (Set as Day Off)</span>
+                        </label>
+                        <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs font-semibold">
+                            <input type="radio" name="overrideActionType" value="move_off" onchange="toggleOverrideActionFields()">
+                            <span>📅 نقل وتغيير الإجازة ليوم آخر في هذا الأسبوع (Move Off to Date)</span>
+                        </label>
+                        <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs font-semibold">
+                            <input type="radio" name="overrideActionType" value="direct_swap" onchange="toggleOverrideActionFields()">
+                            <span>🔄 تبديل مباشر مع زميل في نفس اليوم (Direct Swap with Colleague)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Move Day Off Target Date Selector -->
+                <div id="overrideMoveDateContainer" class="hidden space-y-1 pt-1">
+                    <label class="block text-xs font-bold text-slate-700">انقل الإجازة إلى يوم (New Day Off):</label>
+                    <select id="overrideMoveTargetDate" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Direct Swap Target Selector -->
+                <div id="overrideSwapPeerContainer" class="hidden space-y-1 pt-1">
+                    <label class="block text-xs font-bold text-slate-700">بدل الشفت مع الزميل (Swap with Agent):</label>
+                    <select id="overrideSwapTargetAgent" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('overrideModal')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">إلغاء (Cancel)</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm">حفظ وتطبيق فوراً (Apply)</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SWAP MODAL (FOR AGENTS & MANAGER) -->
+    <div id="swapModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <h3 class="text-base font-black text-slate-900 mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-repeat text-blue-600"></i> Request Shift / Day-Off Swap
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">Trade your scheduled off-day with a colleague</p>
+            <form onsubmit="handleSubmitSwap(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Colleague to Swap With</label>
+                    <select id="swapTargetAgent" onchange="onSwapTargetAgentChanged()" required class="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <!-- Options injected -->
+                    </select>
+                </div>
+
+                <!-- Requester's Off-Day Field -->
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold text-slate-700">Your Off-Day Date to Give Up</label>
+                        <span id="myOffDayHint" class="text-[11px] text-blue-600 font-bold hidden"></span>
+                    </div>
+                    <div class="space-y-1.5">
+                        <input type="date" id="swapReqDate" required class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div id="myOffDaysPills" class="flex flex-wrap gap-1.5 pt-1"></div>
+                    </div>
+                </div>
+
+                <!-- Colleague's Off-Day Field -->
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold text-slate-700">Colleague's Off-Day Date Requested in Return</label>
+                        <span id="targetOffDayHint" class="text-[11px] text-emerald-600 font-bold hidden"></span>
+                    </div>
+                    <div class="space-y-1.5">
+                        <input type="date" id="swapTargetDate" required class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div id="targetOffDaysPills" class="flex flex-wrap gap-1.5 pt-1"></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('swapModal')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm">Send Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LEAVE MODAL (ANNUAL, SICK, EMERGENCY, COMP-OFF) -->
+    <div id="leaveModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <h3 class="text-base font-black text-slate-900 mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-plane-departure text-teal-600"></i> Request Official Leave
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">Submit request for annual, sick, or emergency leave</p>
+            <form onsubmit="handleSubmitLeave(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Leave Date</label>
+                    <input type="date" id="leaveDate" required class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Leave Type</label>
+                    <select id="leaveType" required class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <option value="annual">Annual Leave (إجازة سنوية)</option>
+                        <option value="sick">Sick Leave (إجازة مرضية)</option>
+                        <option value="emergency">Emergency Leave (إجازة عارضة / طارئة)</option>
+                        <option value="comp_off">Compensatory Off (بدل راحة)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Reason / Notes</label>
+                    <textarea id="leaveReason" required rows="3" placeholder="Explain reason for leave..." class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500"></textarea>
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('leaveModal')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition shadow-sm">Submit to Manager</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CHANGE PASSWORD MODAL -->
+    <div id="changePasswordModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <h3 class="text-base font-black text-slate-900 mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-key text-blue-600"></i> Change Your Password
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">Set a personal password for your account</p>
+            <form onsubmit="handleModalPasswordChange(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Current Password</label>
+                    <input type="password" id="modalOldPass" required class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">New Password</label>
+                    <input type="password" id="modalNewPass" required class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('changePasswordModal')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm">Save New Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- EXCUSE MODAL -->
+    <div id="excuseModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <h3 class="text-base font-black text-slate-900 mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-clock text-indigo-600"></i> Submit Official Excuse
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">When approved by Manager, late arrival penalty is waived</p>
+            <form onsubmit="handleSubmitExcuse(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Date</label>
+                    <input type="date" id="excuseDate" required class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">From Time</label>
+                        <input type="time" id="excuseFromTime" required value="10:00" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">To Time</label>
+                        <input type="time" id="excuseToTime" required value="11:30" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Reason / Explanation</label>
+                    <textarea id="excuseReason" required rows="3" placeholder="Provide detailed explanation..." class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-3">
+                    <button type="button" onclick="closeModal('excuseModal')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm">Submit to Manager</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADD AGENT MODAL -->
+    <div id="addAgentModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <h3 class="text-base font-black text-slate-900 mb-1">Add New Team Member</h3>
+            <p class="text-xs text-slate-500 mb-4">Creates a new account and integrates into the scheduling cycle</p>
+            <form onsubmit="handleSubmitAddAgent(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+                    <input type="text" id="newAgentName" required placeholder="e.g. Yasmin Ahmed" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Agent Code</label>
+                    <input type="text" id="newAgentCode" required placeholder="e.g. YA-107" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Default Password</label>
+                    <input type="text" id="newAgentPassword" required placeholder="e.g. yasmin123" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-3">
+                    <button type="button" onclick="closeModal('addAgentModal')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        // Global State
+        let currentUser = null;
+        let currentSundayStr = null;
+        let liveRefreshInterval = null;
+        let liveTickInterval = null;
+        let cachedAgents = [];
+        let cachedLiveAgents = [];
+        let cachedSchedules = [];
+
+        // On Load
+        document.addEventListener("DOMContentLoaded", () => {
+            const savedUser = localStorage.getItem("liveops_user");
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                showApp();
+            }
+            updateDateHeader();
+        });
+
+        function updateDateHeader() {
+            const now = new Date();
+            const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            document.getElementById("currentLiveTime").innerText = now.toLocaleDateString('en-US', opts);
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const code = document.getElementById("loginCode").value;
+            const password = document.getElementById("loginPassword").value;
+            const errDiv = document.getElementById("loginError");
+
+            try {
+                const res = await fetch("/api/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ code, password })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    errDiv.classList.remove("hidden");
+                    document.getElementById("loginErrorText").innerText = data.detail || "Authentication failed";
+                    return;
+                }
+                currentUser = data.agent;
+                localStorage.setItem("liveops_user", JSON.stringify(currentUser));
+                errDiv.classList.add("hidden");
+                showApp();
+            } catch (err) {
+                errDiv.classList.remove("hidden");
+                document.getElementById("loginErrorText").innerText = "Unable to connect to server";
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem("liveops_user");
+            currentUser = null;
+            clearInterval(liveRefreshInterval);
+            clearInterval(liveTickInterval);
+            document.getElementById("loginSection").classList.remove("hidden");
+            document.getElementById("appContainer").classList.add("hidden");
+        }
+
+        function showApp() {
+            document.getElementById("loginSection").classList.add("hidden");
+            document.getElementById("appContainer").classList.remove("hidden");
+            document.getElementById("userNameDisplay").innerText = currentUser.name;
+            document.getElementById("userRoleDisplay").innerText = currentUser.role === 'manager' ? 'Operations Manager' : 'LiveOps Agent';
+
+            if (currentUser.role === 'manager') {
+                document.getElementById("tabBtn_holidays").classList.remove("hidden");
+                document.getElementById("tabBtn_team").classList.remove("hidden");
+                document.getElementById("tabBtn_reports").classList.remove("hidden");
+                document.getElementById("managerControlsSection").classList.remove("hidden");
+                document.getElementById("adminTeamActionBtn").classList.remove("hidden");
+                document.getElementById("managerDirectOverrideInfo").classList.remove("hidden");
+            } else {
+                document.getElementById("tabBtn_holidays").classList.add("hidden");
+                document.getElementById("tabBtn_team").classList.add("hidden");
+                document.getElementById("tabBtn_reports").classList.add("hidden");
+                document.getElementById("managerControlsSection").classList.add("hidden");
+                document.getElementById("adminTeamActionBtn").classList.add("hidden");
+                document.getElementById("managerDirectOverrideInfo").classList.add("hidden");
+            }
+
+            // Init data
+            loadLiveStatus();
+            loadMasterRoster();
+            loadRequests();
+            loadTeam();
+            loadHolidays();
+            loadSettings();
+
+            // Refresh live every 10s
+            clearInterval(liveRefreshInterval);
+            liveRefreshInterval = setInterval(() => {
+                loadLiveStatus();
+                loadRequests();
+            }, 10000);
+
+            // Fast ticker every 1000ms for live stopwatch
+            clearInterval(liveTickInterval);
+            liveTickInterval = setInterval(() => {
+                updateAllLiveCounters();
+            }, 1000);
+        }
+
+        function switchTab(tabKey) {
+            // Guard manager-only tabs for agent role
+            if (currentUser && currentUser.role !== 'manager') {
+                if (tabKey === 'holidays' || tabKey === 'team' || tabKey === 'reports') {
+                    tabKey = 'live';
+                }
+            }
+            document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+            document.querySelectorAll(".tab-btn").forEach(el => {
+                el.classList.remove("bg-blue-50", "text-blue-700");
+                el.classList.add("text-slate-600");
+            });
+
+            document.getElementById(`tabContent_${tabKey}`).classList.remove("hidden");
+            const btn = document.getElementById(`tabBtn_${tabKey}`);
+            if (btn) {
+                btn.classList.add("bg-blue-50", "text-blue-700");
+                btn.classList.remove("text-slate-600");
+            }
+
+            if (tabKey === 'schedule') loadMasterRoster();
+            if (tabKey === 'requests') loadRequests();
+            if (tabKey === 'team') loadTeam();
+            if (tabKey === 'holidays') loadHolidays();
+            if (tabKey === 'reports') loadSettings();
+        }
+
+        function getElapsedSeconds(timeStr) {
+            if (!timeStr) return 0;
+            const parts = timeStr.split(':').map(Number);
+            if (parts.length < 2) return 0;
+            const now = new Date();
+            const startDate = new Date();
+            startDate.setHours(parts[0], parts[1], parts[2] || 0, 0);
+            const diff = Math.floor((now - startDate) / 1000);
+            return diff > 0 ? diff : 0;
+        }
+
+        function formatDuration(totalSec) {
+            if (isNaN(totalSec) || totalSec < 0) totalSec = 0;
+            const h = Math.floor(totalSec / 3600);
+            const m = Math.floor((totalSec % 3600) / 60);
+            const s = totalSec % 60;
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        async function loadLiveStatus() {
+            try {
+                const res = await fetch("/api/live/status");
+                const data = await res.json();
+
+                document.getElementById("metricActiveQueue").innerText = data.active_on_queue;
+                document.getElementById("metricActiveBreak").innerText = data.active_on_break;
+
+                let offCount = 0;
+                data.agents.forEach(a => { if (a.shift_type === 'off') offCount++; });
+                document.getElementById("metricOffToday").innerText = offCount;
+
+                // Queue Mode Badge
+                const modeBadge = document.getElementById("queueModeBadge");
+                const meetingBtn = document.getElementById("meetingModeToggleBtn");
+                if (data.queue_mode === 'meeting') {
+                    modeBadge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1.5";
+                    modeBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Emergency / Meeting (Queue Paused)`;
+                    if (meetingBtn) meetingBtn.innerHTML = `<i class="fa-solid fa-play text-emerald-600"></i> Resume Normal Queue`;
+                } else {
+                    modeBadge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5";
+                    modeBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Queue Active (${data.active_on_queue}/5)`;
+                    if (meetingBtn) meetingBtn.innerHTML = `<i class="fa-solid fa-bullhorn text-amber-600"></i> Pause Queue for Meeting / Emergency`;
+                }
+
+                cachedLiveAgents = data.agents || [];
+                renderAgentActionBar(cachedLiveAgents);
+                renderAgentsCards(cachedLiveAgents);
+                updateAllLiveCounters();
+            } catch (err) {
+                console.error("Live status err:", err);
+            }
+        }
+
+        function updateAllLiveCounters() {
+            if (!cachedLiveAgents || cachedLiveAgents.length === 0) return;
+
+            cachedLiveAgents.forEach(a => {
+                const counterEl = document.getElementById(`liveCounter_${a.agent_id}`);
+                const netWorkEl = document.getElementById(`netWorkVal_${a.agent_id}`);
+                const breakEl = document.getElementById(`breakVal_${a.agent_id}`);
+                const meetingEl = document.getElementById(`meetingVal_${a.agent_id}`);
+                const emergencyEl = document.getElementById(`emergencyVal_${a.agent_id}`);
+                const actionCounterEl = document.getElementById("agentActionBarLiveCounter");
+
+                if (!a.clock_in) {
+                    if (counterEl) counterEl.innerText = "--:--:--";
+                    if (netWorkEl) netWorkEl.innerText = "00:00:00";
+                    return;
+                }
+
+                // Gross shift seconds
+                let grossSec = 0;
+                if (a.clock_out) {
+                    grossSec = (a.total_work_minutes + (a.total_break_minutes || 0) + (a.total_meeting_minutes || 0) + (a.total_emergency_minutes || 0)) * 60;
+                } else {
+                    grossSec = getElapsedSeconds(a.clock_in);
+                }
+
+                // Active in-progress seconds for break, meeting, emergency
+                const curBreakSec = a.is_on_break ? getElapsedSeconds(a.active_break_start) : 0;
+                const curMeetingSec = a.is_in_meeting ? getElapsedSeconds(a.active_meeting_start) : 0;
+                const curEmergencySec = (a.is_in_emergency || a.current_state === 'on_hold') ? getElapsedSeconds(a.active_emergency_start) : 0;
+
+                const totalBreakSec = ((a.total_break_minutes || 0) * 60) + curBreakSec;
+                const totalMeetingSec = ((a.total_meeting_minutes || 0) * 60) + curMeetingSec;
+                const totalEmergencySec = ((a.total_emergency_minutes || 0) * 60) + curEmergencySec;
+
+                // Net work seconds (strictly deducting all break, meeting, and emergency durations)
+                let netWorkSec = 0;
+                if (a.clock_out) {
+                    netWorkSec = a.total_work_minutes * 60;
+                } else {
+                    netWorkSec = Math.max(0, grossSec - totalBreakSec - totalMeetingSec - totalEmergencySec);
+                }
+
+                // Update Detailed Breakdown Cells
+                if (netWorkEl) netWorkEl.innerText = formatDuration(netWorkSec);
+                if (breakEl) {
+                    const bMin = Math.floor(totalBreakSec / 60);
+                    breakEl.innerText = `${bMin} / 60 min`;
+                    breakEl.className = bMin > 60 ? "font-bold text-red-600 font-mono" : "font-bold text-slate-700 font-mono";
+                }
+                if (meetingEl) {
+                    const mMin = Math.floor(totalMeetingSec / 60);
+                    meetingEl.innerText = `${mMin} min`;
+                }
+                if (emergencyEl) {
+                    const eMin = Math.floor(totalEmergencySec / 60);
+                    emergencyEl.innerText = `${eMin} min`;
+                }
+
+                // Update Digital Stopwatch in the Card
+                if (counterEl) {
+                    if (a.clock_out) {
+                        counterEl.innerText = formatDuration(netWorkSec);
+                    } else if (a.is_on_break) {
+                        counterEl.innerText = formatDuration(curBreakSec);
+                    } else if (a.is_in_meeting) {
+                        counterEl.innerText = formatDuration(curMeetingSec);
+                    } else if (a.is_in_emergency || a.current_state === 'on_hold') {
+                        counterEl.innerText = formatDuration(curEmergencySec);
+                    } else {
+                        counterEl.innerText = formatDuration(netWorkSec);
+                    }
+                }
+
+                // Update Agent Action Bar Widget (if current user)
+                if (currentUser && a.agent_id === currentUser.id && actionCounterEl) {
+                    if (a.clock_out) {
+                        actionCounterEl.innerHTML = `<span class="text-slate-300">Shift Net:</span> <span class="font-mono text-emerald-300 font-bold">${formatDuration(netWorkSec)}</span>`;
+                    } else if (a.is_on_break) {
+                        actionCounterEl.innerHTML = `<span class="text-amber-200">☕ Break Ticking:</span> <span class="font-mono text-amber-300 font-bold">${formatDuration(curBreakSec)}</span> <span class="text-[10px] text-amber-200/70">(Net Frozen: ${formatDuration(netWorkSec)})</span>`;
+                    } else if (a.is_in_meeting) {
+                        actionCounterEl.innerHTML = `<span class="text-purple-200">📢 Meeting Ticking:</span> <span class="font-mono text-purple-300 font-bold">${formatDuration(curMeetingSec)}</span> <span class="text-[10px] text-purple-200/70">(Net Frozen: ${formatDuration(netWorkSec)})</span>`;
+                    } else if (a.is_in_emergency || a.current_state === 'on_hold') {
+                        actionCounterEl.innerHTML = `<span class="text-rose-200">🚨 Emergency Ticking:</span> <span class="font-mono text-rose-300 font-bold">${formatDuration(curEmergencySec)}</span> <span class="text-[10px] text-rose-200/70">(Net Frozen: ${formatDuration(netWorkSec)})</span>`;
+                    } else {
+                        actionCounterEl.innerHTML = `<span class="text-emerald-200">🟢 Net Work Time:</span> <span class="font-mono text-emerald-300 font-bold">${formatDuration(netWorkSec)}</span>`;
+                    }
+                }
+            });
+        }
+
+        function renderAgentActionBar(agents) {
+            const currentAgentData = agents.find(a => a.agent_id === currentUser.id);
+            const welcomeEl = document.getElementById("agentPunchWelcome");
+            const detailsEl = document.getElementById("agentPunchStatusDetails");
+            const btnContainer = document.getElementById("agentActionButtonsContainer");
+            btnContainer.innerHTML = "";
+
+            if (!currentAgentData) {
+                welcomeEl.innerText = `Welcome, ${currentUser.name}`;
+                detailsEl.innerText = "You are logged in with Management Authority.";
+                return;
+            }
+
+            welcomeEl.innerText = `Welcome, ${currentAgentData.name}`;
+
+            if (currentAgentData.shift_type === 'off' && !currentAgentData.clock_in) {
+                detailsEl.innerText = "Today is your scheduled Day Off 🏖️ Enjoy your rest! (Or clock in for overtime if working today).";
+                btnContainer.innerHTML = `
+                    <button onclick="handlePunch('start_shift')" class="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl text-sm transition shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> Start Shift / بدء الشفت ▶️
+                    </button>
+                `;
+                return;
+            }
+
+            if (!currentAgentData.clock_in) {
+                detailsEl.innerText = "You have not clocked in yet today. Shift start: 10:00 AM.";
+                btnContainer.innerHTML = `
+                    <button onclick="handlePunch('start_shift')" class="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl text-sm transition shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> Start Shift / بدء الشفت ▶️
+                    </button>
+                `;
+            } else if (!currentAgentData.clock_out) {
+                let statusTxt = `Clocked in at ${currentAgentData.clock_in}. `;
+                if (currentAgentData.late_minutes > 0) {
+                    statusTxt += `(Late: ${currentAgentData.late_minutes} min - make up after 7:00 PM to clear). `;
+                }
+                statusTxt += `Break: ${currentAgentData.total_break_minutes || 0}/60 min | Meeting: ${currentAgentData.total_meeting_minutes || 0} min | Emergency: ${currentAgentData.total_emergency_minutes || 0} min.`;
+                detailsEl.innerText = statusTxt;
+
+                if (currentAgentData.is_on_break) {
+                    detailsEl.innerText = `☕ You are currently ON BREAK. Net queue work time is paused.`;
+                    btnContainer.innerHTML += `
+                        <button onclick="handleToggleBreak('end_break')" class="px-5 py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black rounded-xl text-sm transition shadow-lg flex items-center gap-2">
+                            <i class="fa-solid fa-play"></i> End Break / إنهاء البريك ▶️
+                        </button>
+                    `;
+                } else if (currentAgentData.is_in_meeting) {
+                    detailsEl.innerText = `📢 You are currently in a MEETING (بوز ميتنج). Meeting duration is accumulated separately.`;
+                    btnContainer.innerHTML += `
+                        <button onclick="handleTogglePause('end_pause', 'meeting')" class="px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl text-sm transition shadow-lg flex items-center gap-2">
+                            <i class="fa-solid fa-play"></i> End Meeting / إنهاء الميتنج ▶️
+                        </button>
+                    `;
+                } else if (currentAgentData.is_in_emergency || currentAgentData.current_state === 'on_hold') {
+                    detailsEl.innerText = `🚨 You are currently on EMERGENCY PAUSE (ظرف طارئ). Emergency duration is accumulated separately.`;
+                    btnContainer.innerHTML += `
+                        <button onclick="handleTogglePause('end_pause', 'emergency')" class="px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-sm transition shadow-lg flex items-center gap-2">
+                            <i class="fa-solid fa-play"></i> Resume Queue / إنهاء ظرف طارئ ▶️
+                        </button>
+                    `;
+                } else {
+                    btnContainer.innerHTML += `
+                        <button onclick="handleToggleBreak('start_break')" class="px-5 py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black rounded-xl text-sm transition shadow-lg flex items-center gap-2" title="فترة البريك الرسمية (60 دقيقة)">
+                            <i class="fa-solid fa-mug-saucer"></i> Break / بريك ☕
+                        </button>
+                        <button onclick="handleTogglePause('start_pause', 'meeting')" class="px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl text-sm transition shadow-lg flex items-center gap-2" title="بوز ميتنج مع الإدارة أو الفريق">
+                            <i class="fa-solid fa-handshake"></i> Meeting / بوز ميتنج 📢
+                        </button>
+                        <button onclick="handleTogglePause('start_pause', 'emergency')" class="px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-sm transition shadow-lg flex items-center gap-2" title="بوز لظرف طارئ مفاجئ">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Emergency / ظرف طارئ 🚨
+                        </button>
+                    `;
+                }
+
+                btnContainer.innerHTML += `
+                    <button onclick="handlePunch('end_shift')" class="px-5 py-3 bg-slate-900 hover:bg-black border border-slate-700 text-white font-bold rounded-xl text-sm transition shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-power-off text-red-400"></i> Clock Out / إنهاء الشفت ⏹️
+                    </button>
+                `;
+            } else {
+                detailsEl.innerText = `Shift completed! Clocked out at ${currentAgentData.clock_out} (Net Queue Work: ${Math.round((currentAgentData.total_work_minutes || 0)/60)} hours).`;
+                btnContainer.innerHTML = `
+                    <button onclick="handlePunch('start_shift')" class="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl text-sm transition shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> Start Shift / بدء الشفت ▶️
+                    </button>
+                `;
+            }
+        }
+
+        function renderAgentsCards(agents) {
+            const grid = document.getElementById("liveAgentsGrid");
+            grid.innerHTML = "";
+
+            // For Agent: ONLY display the logged-in agent!
+            // For Manager: display all team members!
+            const targetAgents = (currentUser && currentUser.role === 'agent') 
+                ? agents.filter(a => a.agent_id === currentUser.id)
+                : agents;
+
+            const titleEl = document.getElementById("liveAdherenceTitle");
+            if (titleEl) {
+                if (currentUser && currentUser.role === 'agent') {
+                    titleEl.innerHTML = `<i class="fa-solid fa-user-check text-blue-600"></i> Your Today's Shift & Queue Status`;
+                } else {
+                    titleEl.innerHTML = `<i class="fa-solid fa-users text-blue-600"></i> Live Team Queue Adherence`;
+                }
+            }
+
+            targetAgents.forEach(a => {
+                let badgeClass = "bg-slate-100 text-slate-600";
+                let badgeText = "Not Clocked";
+                let borderClass = "border-slate-200";
+                let stateHeaderTitle = "Shift Inactive";
+                let timerColor = "text-slate-400";
+
+                if (a.current_state === 'off') {
+                    badgeClass = "bg-blue-50 text-blue-700 border border-blue-200";
+                    badgeText = "Day Off 🏖️";
+                    stateHeaderTitle = "Day Off 🏖️";
+                } else if (a.current_state === 'in_meeting' || a.current_state === 'meeting') {
+                    badgeClass = "bg-purple-100 text-purple-800 border border-purple-200";
+                    badgeText = "In Meeting 📢";
+                    borderClass = "border-purple-300";
+                    stateHeaderTitle = "Meeting Pause Active 📢";
+                    timerColor = "text-purple-400";
+                } else if (a.current_state === 'in_emergency' || a.current_state === 'on_hold') {
+                    badgeClass = "bg-rose-100 text-rose-800 border border-rose-200";
+                    badgeText = "Emergency Pause 🚨";
+                    borderClass = "border-rose-300";
+                    stateHeaderTitle = "Emergency Pause Active 🚨";
+                    timerColor = "text-rose-400";
+                } else if (a.current_state === 'on_break') {
+                    badgeClass = "bg-amber-100 text-amber-800 border border-amber-200";
+                    badgeText = "On Break ☕";
+                    borderClass = "border-amber-300";
+                    stateHeaderTitle = "Official Break Active ☕";
+                    timerColor = "text-amber-400";
+                } else if (a.current_state === 'on_shift') {
+                    badgeClass = "bg-emerald-100 text-emerald-800 border border-emerald-200";
+                    badgeText = "On Queue 🟢";
+                    borderClass = "border-emerald-300";
+                    stateHeaderTitle = "Active Working on Queue 🟢";
+                    timerColor = "text-emerald-400";
+                } else if (a.current_state === 'completed') {
+                    badgeClass = "bg-slate-100 text-slate-700";
+                    badgeText = "Shift Completed ✔️";
+                    stateHeaderTitle = "Shift Completed ✔️";
+                    timerColor = "text-slate-300";
+                }
+
+                const cardHtml = `
+                    <div class="bg-white rounded-2xl p-5 border ${borderClass} shadow-sm space-y-4">
+                        <!-- Card Header -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 font-bold flex items-center justify-center font-mono text-xs">
+                                    ${a.code.split('-')[0]}
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-900">${a.name}</h4>
+                                    <span class="text-xs text-slate-400 font-mono">${a.code}</span>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeClass}">
+                                ${badgeText}
+                            </span>
+                        </div>
+
+                        <!-- Live Digital Stopwatch Widget -->
+                        <div class="bg-slate-950 rounded-xl p-3.5 text-center shadow-inner border border-slate-800">
+                            <div class="text-[11px] font-bold text-slate-400 mb-0.5 flex items-center justify-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full ${a.clock_in && !a.clock_out ? 'bg-emerald-400 animate-ping' : 'bg-slate-600'}"></span>
+                                <span>${stateHeaderTitle}</span>
+                            </div>
+                            <div id="liveCounter_${a.agent_id}" class="text-3xl font-black font-mono tracking-widest ${timerColor}">
+                                00:00:00
+                            </div>
+                            <div class="text-[10px] text-slate-400 mt-1 font-mono">
+                                ${a.clock_in ? (a.is_on_break ? 'Active Break Timer (Net Queue Paused)' : (a.is_in_meeting ? 'Active Meeting Timer (Net Queue Paused)' : ((a.is_in_emergency || a.current_state === 'on_hold') ? 'Active Emergency Timer (Net Queue Paused)' : 'Live Ticking Net Queue Work Time'))) : 'Shift Not Started'}
+                            </div>
+                        </div>
+
+                        <!-- 5-Metric Time Breakdown -->
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                <span class="text-slate-400 block text-[10px]">صافي وقت العمل على الكيو:</span>
+                                <span id="netWorkVal_${a.agent_id}" class="font-black text-emerald-700 font-mono text-sm">--:--:--</span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                <span class="text-slate-400 block text-[10px]">دقائق البريك المستهلكة:</span>
+                                <span id="breakVal_${a.agent_id}" class="font-bold text-slate-700 font-mono">${a.total_break_minutes || 0} / 60 min</span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                <span class="text-slate-400 block text-[10px]">بوز ميتنج (Meeting):</span>
+                                <span id="meetingVal_${a.agent_id}" class="font-bold text-purple-700 font-mono">${a.total_meeting_minutes || 0} min</span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                <span class="text-slate-400 block text-[10px]">ظرف طارئ (Emergency):</span>
+                                <span id="emergencyVal_${a.agent_id}" class="font-bold text-rose-700 font-mono">${a.total_emergency_minutes || 0} min</span>
+                            </div>
+                        </div>
+
+                        <!-- Clock In/Out & Lateness Footer -->
+                        <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
+                            <div>
+                                <span class="text-slate-400 block text-[10px]">Clock In:</span>
+                                <span class="font-mono font-bold text-slate-800">${a.clock_in || '--:--'}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block text-[10px]">Clock Out:</span>
+                                <span class="font-mono font-bold text-slate-800">${a.clock_out || '--:--'}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block text-[10px]">Lateness:</span>
+                                <span class="${a.late_minutes > 0 ? (a.is_compensated ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold') : 'text-slate-700 font-bold'}">
+                                    ${a.late_minutes > 0 ? (a.is_compensated ? 'Made-Up ✔️' : a.late_minutes + ' min') : '0 min'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.innerHTML += cardHtml;
+            });
+        }
+
+        async function handlePunch(action) {
+            try {
+                const res = await fetch("/api/attendance/punch", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ agent_id: currentUser.id, action })
+                });
+                if (res.ok) {
+                    loadLiveStatus();
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Action failed");
+                }
+            } catch (err) {
+                alert("Connection error");
+            }
+        }
+
+        async function handleToggleBreak(action) {
+            try {
+                const res = await fetch("/api/break/toggle", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ agent_id: currentUser.id, action })
+                });
+                if (res.ok) {
+                    loadLiveStatus();
+                }
+            } catch (err) {
+                alert("Connection error");
+            }
+        }
+
+        async function handleTogglePause(action, pauseType) {
+            try {
+                const res = await fetch("/api/pause/toggle", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ agent_id: currentUser.id, action, pause_type: pauseType })
+                });
+                if (res.ok) {
+                    loadLiveStatus();
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Action failed");
+                }
+            } catch (err) {
+                alert("Connection error");
+            }
+        }
+
+        async function toggleQueueMode() {
+            const currentBadge = document.getElementById("queueModeBadge").innerText;
+            const newMode = currentBadge.includes("Active") ? "meeting" : "normal";
+            try {
+                await fetch("/api/queue/mode", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ mode: newMode })
+                });
+                loadLiveStatus();
+            } catch (err) {
+                alert("Failed to toggle queue mode");
+            }
+        }
+
+        // ==========================================
+        // MASTER ROSTER / SCHEDULE
+        // ==========================================
+        async function loadMasterRoster() {
+            try {
+                const url = currentSundayStr ? `/api/schedule/week?sunday=${currentSundayStr}` : `/api/schedule/week`;
+                const res = await fetch(url);
+                const schedules = await res.json();
+
+                if (!schedules || schedules.length === 0) return;
+                cachedSchedules = schedules;
+
+                currentSundayStr = schedules[0].week_start_date;
+                document.getElementById("rosterWeekTitle").innerText = `Week Starting: Sunday, ${currentSundayStr}`;
+
+                // Set Date Header labels
+                const sunDate = new Date(currentSundayStr);
+                for (let i = 0; i < 7; i++) {
+                    const d = new Date(sunDate);
+                    d.setDate(sunDate.getDate() + i);
+                    const label = `${d.getMonth()+1}/${d.getDate()}`;
+                    document.getElementById(`th_date_${i}`).innerText = label;
+                }
+
+                // Group by Agent
+                const agentMap = {};
+                const dailyCounts = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0};
+
+                schedules.forEach(s => {
+                    if (!agentMap[s.agent_id]) {
+                        agentMap[s.agent_id] = {
+                            id: s.agent_id,
+                            name: s.agent_name,
+                            code: s.agent_code,
+                            days: {}
+                        };
+                    }
+                    agentMap[s.agent_id].days[s.day_of_week] = s;
+                    if (s.shift_type === 'work') {
+                        dailyCounts[s.day_of_week]++;
+                    }
+                });
+
+                // Render Queue Summary Row
+                const summaryRow = document.getElementById("queueSummaryRow");
+                let summaryCells = `<td class="p-3 text-left text-xs font-black text-slate-700">Daily Queue Strength:</td>`;
+                for (let d = 0; d < 7; d++) {
+                    const cnt = dailyCounts[d];
+                    const bg = d === 5 ? "bg-slate-200 text-slate-500" : (cnt >= 5 ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800");
+                    summaryCells += `
+                        <td class="p-2 text-center">
+                            <span class="px-2 py-0.5 rounded text-xs font-black ${bg}">
+                                ${d === 5 ? 'All Off' : cnt + ' / 5 Queue'}
+                            </span>
+                        </td>
+                    `;
+                }
+                summaryRow.innerHTML = summaryCells;
+
+                // Render Body
+                const tbody = document.getElementById("rosterTableBody");
+                tbody.innerHTML = "";
+
+                Object.values(agentMap).forEach(ag => {
+                    let trHtml = `
+                        <tr class="hover:bg-slate-50/80 transition">
+                            <td class="p-4 font-bold text-slate-900 border-r border-slate-100">
+                                <div>${ag.name}</div>
+                                <span class="text-xs text-slate-400 font-mono">${ag.code}</span>
+                            </td>
+                    `;
+
+                    for (let d = 0; d < 7; d++) {
+                        const s = ag.days[d];
+                        let cellContent = "";
+                        const cursorClass = (currentUser && currentUser.role === 'manager') ? "cursor-pointer hover:ring-2 hover:ring-blue-400" : "";
+                        const clickHandler = (currentUser && currentUser.role === 'manager') ? `onclick="openOverrideModal(${s.agent_id}, '${s.agent_name}', '${s.date}', '${s.shift_type}')"` : "";
+
+                        if (s.shift_type === 'off') {
+                            const isFriday = d === 5;
+                            cellContent = `
+                                <div ${clickHandler} class="px-2 py-2 rounded-xl text-center text-xs font-bold transition ${cursorClass} ${isFriday ? 'bg-blue-50 text-blue-800' : 'bg-slate-100 text-slate-700'}">
+                                    <i class="fa-solid fa-umbrella-beach block text-sm mb-0.5 ${isFriday ? 'text-blue-500' : 'text-slate-400'}"></i>
+                                    ${isFriday ? 'Friday Off' : 'Day Off'}
+                                </div>
+                            `;
+                        } else if (s.shift_type === 'leave') {
+                            cellContent = `
+                                <div ${clickHandler} class="px-2 py-2 rounded-xl text-center text-xs font-bold transition ${cursorClass} bg-amber-50 text-amber-800 border border-amber-200">
+                                    <i class="fa-solid fa-calendar-xmark block text-sm mb-0.5 text-amber-500"></i>
+                                    Leave
+                                </div>
+                            `;
+                        } else {
+                            // Work shift
+                            let holidayBadge = "";
+                            if (s.is_holiday) {
+                                holidayBadge = s.pay_multiplier === 3 ? 
+                                    `<span class="block text-[10px] text-pink-700 font-bold bg-pink-100 rounded px-1 mt-0.5">3x Triple Pay</span>` :
+                                    `<span class="block text-[10px] text-amber-800 font-bold bg-amber-100 rounded px-1 mt-0.5">2x Double Pay</span>`;
+                            }
+                            cellContent = `
+                                <div ${clickHandler} class="px-2 py-1.5 rounded-xl text-center text-xs font-semibold transition ${cursorClass} bg-emerald-50 text-emerald-900 border border-emerald-200">
+                                    <span class="font-bold block">10:00 - 19:00</span>
+                                    <span class="text-[10px] text-emerald-700">On Queue</span>
+                                    ${holidayBadge}
+                                </div>
+                            `;
+                        }
+
+                        trHtml += `<td class="p-2.5 align-middle border-r border-slate-100">${cellContent}</td>`;
+                    }
+
+                    trHtml += `</tr>`;
+                    tbody.innerHTML += trHtml;
+                });
+
+            } catch (err) {
+                console.error("Master roster load err:", err);
+            }
+        }
+
+        function changeWeek(delta) {
+            if (!currentSundayStr) return;
+            const d = new Date(currentSundayStr);
+            d.setDate(d.getDate() + (delta * 7));
+            currentSundayStr = d.toISOString().split('T')[0];
+            loadMasterRoster();
+        }
+
+        function jumpToCurrentWeek() {
+            currentSundayStr = null;
+            loadMasterRoster();
+        }
+
+        // ==========================================
+        // MANAGER DIRECT SCHEDULE OVERRIDE MODAL
+        // ==========================================
+        function openOverrideModal(agentId, agentName, dateStr, currentShiftType) {
+            document.getElementById("overrideAgentId").value = agentId;
+            document.getElementById("overrideDate").value = dateStr;
+            document.getElementById("overrideAgentName").innerText = agentName;
+            document.getElementById("overrideDateDisplay").innerText = dateStr;
+            document.getElementById("overrideCurrentStatus").innerText = (currentShiftType === 'off') ? 'DAY OFF 🏖️' : 'ON DUTY 🟢';
+
+            // Populate Peer Selector for Direct Swap
+            const peerSelect = document.getElementById("overrideSwapTargetAgent");
+            peerSelect.innerHTML = "";
+            cachedAgents.forEach(ag => {
+                if (ag.id !== agentId && ag.role === 'agent') {
+                    peerSelect.innerHTML += `<option value="${ag.id}">${ag.name} (${ag.code})</option>`;
+                }
+            });
+
+            // Populate Move Date Selector for Move Off
+            const moveSelect = document.getElementById("overrideMoveTargetDate");
+            moveSelect.innerHTML = "";
+            const dayNamesAr = ["الأحد (Sun)", "الإثنين (Mon)", "الثلاثاء (Tue)", "الأربعاء (Wed)", "الخميس (Thu)", "الجمعة (Fri)", "السبت (Sat)"];
+            const curDt = new Date(dateStr + "T00:00:00");
+            const dayOfWeek = curDt.getDay();
+            const sunDate = new Date(curDt);
+            sunDate.setDate(curDt.getDate() - dayOfWeek);
+
+            for (let i = 0; i < 7; i++) {
+                if (i === 5) continue; // Friday is fixed off
+                const d = new Date(sunDate);
+                d.setDate(sunDate.getDate() + i);
+                const dStr = d.toISOString().split('T')[0];
+                if (dStr !== dateStr) {
+                    moveSelect.innerHTML += `<option value="${dStr}">${dayNamesAr[i]} - ${dStr}</option>`;
+                }
+            }
+
+            // Set radio default
+            if (currentShiftType === 'work') {
+                document.querySelector('input[name="overrideActionType"][value="set_off"]').checked = true;
+            } else {
+                document.querySelector('input[name="overrideActionType"][value="set_work"]').checked = true;
+            }
+            toggleOverrideActionFields();
+
+            document.getElementById("overrideModal").classList.remove("hidden");
+        }
+
+        function toggleOverrideActionFields() {
+            const val = document.querySelector('input[name="overrideActionType"]:checked').value;
+            const peerDiv = document.getElementById("overrideSwapPeerContainer");
+            const moveDiv = document.getElementById("overrideMoveDateContainer");
+
+            if (val === 'direct_swap') {
+                peerDiv.classList.remove("hidden");
+                moveDiv.classList.add("hidden");
+            } else if (val === 'move_off') {
+                moveDiv.classList.remove("hidden");
+                peerDiv.classList.add("hidden");
+            } else {
+                peerDiv.classList.add("hidden");
+                moveDiv.classList.add("hidden");
+            }
+        }
+
+        async function handleSaveOverride(e) {
+            e.preventDefault();
+            const agentId = parseInt(document.getElementById("overrideAgentId").value);
+            const dateStr = document.getElementById("overrideDate").value;
+            const actionType = document.querySelector('input[name="overrideActionType"]:checked').value;
+
+            try {
+                if (actionType === 'direct_swap') {
+                    const peerId = parseInt(document.getElementById("overrideSwapTargetAgent").value);
+                    const res = await fetch("/api/schedule/direct-swap", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            agent1_id: agentId,
+                            date1: dateStr,
+                            agent2_id: peerId,
+                            date2: dateStr
+                        })
+                    });
+                    if (!res.ok) throw new Error("Swap failed");
+                } else if (actionType === 'move_off') {
+                    const newTargetDate = document.getElementById("overrideMoveTargetDate").value;
+                    // 1. Set current date to work (cancel off)
+                    const res1 = await fetch("/api/schedule/override", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            agent_id: agentId,
+                            date: dateStr,
+                            shift_type: "work"
+                        })
+                    });
+                    // 2. Set new target date to off
+                    const res2 = await fetch("/api/schedule/override", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            agent_id: agentId,
+                            date: newTargetDate,
+                            shift_type: "off"
+                        })
+                    });
+                    if (!res1.ok || !res2.ok) throw new Error("Move failed");
+                } else {
+                    const shiftType = (actionType === 'set_off') ? 'off' : 'work';
+                    const res = await fetch("/api/schedule/override", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            agent_id: agentId,
+                            date: dateStr,
+                            shift_type: shiftType
+                        })
+                    });
+                    if (!res.ok) throw new Error("Override failed");
+                }
+
+                closeModal("overrideModal");
+                loadMasterRoster();
+                loadLiveStatus();
+            } catch (err) {
+                alert("Failed to apply schedule modification");
+            }
+        }
+
+        // ==========================================
+        // SWAPS, EXCUSES & LEAVES
+        // ==========================================
+        async function loadRequests() {
+            try {
+                const resSw = await fetch("/api/swaps");
+                const swaps = await resSw.json();
+                renderSwapsList(swaps);
+                renderPeerBanner(swaps);
+
+                const resEx = await fetch("/api/excuses");
+                const excuses = await resEx.json();
+                renderExcusesList(excuses);
+
+                const resLv = await fetch("/api/leaves");
+                const leaves = await resLv.json();
+                renderLeavesList(leaves);
+
+                // Update Notifications Center (Bell & Dropdown)
+                updateNotifications(swaps, excuses, leaves);
+
+                let pendingCount = 0;
+                if (currentUser && currentUser.role === 'manager') {
+                    pendingCount = swaps.filter(s => s.status === 'pending_manager').length + 
+                                   excuses.filter(e => e.status === 'pending').length +
+                                   leaves.filter(l => l.status === 'pending').length;
+                } else if (currentUser) {
+                    pendingCount = swaps.filter(s => s.status === 'pending_peer' && s.target_agent_id === currentUser.id).length;
+                }
+
+                const badge = document.getElementById("requestsCountBadge");
+                if (pendingCount > 0) {
+                    badge.classList.remove("hidden");
+                    badge.innerText = pendingCount;
+                } else {
+                    badge.classList.add("hidden");
+                }
+            } catch (err) {
+                console.error("Requests load err:", err);
+            }
+        }
+
+        function updateNotifications(swaps, excuses, leaves) {
+            if (!currentUser) return;
+            const badge = document.getElementById("notifBadge");
+            const label = document.getElementById("notifCountLabel");
+            const listContainer = document.getElementById("notifListContainer");
+            if (!listContainer) return;
+
+            let notifs = [];
+
+            if (currentUser.role === 'manager') {
+                // Manager sees all pending requests requiring approval
+                (swaps || []).filter(s => s.status === 'pending_manager').forEach(s => {
+                    const reqDate = s.requester_date_formatted || s.requester_date;
+                    const tgtDate = s.target_date_formatted || s.target_date;
+                    notifs.push({
+                        type: 'swap',
+                        title: 'Shift Swap Approval Needed',
+                        desc: `${s.requester_name} ↔ ${s.target_name} (${reqDate})`,
+                        badge: 'Action Needed',
+                        badgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+                        icon: 'fa-solid fa-repeat text-blue-600',
+                        action: () => switchTab('requests')
+                    });
+                });
+
+                (excuses || []).filter(e => e.status === 'pending').forEach(e => {
+                    const d = e.date_formatted || e.date;
+                    notifs.push({
+                        type: 'excuse',
+                        title: `Excuse Request: ${e.agent_name}`,
+                        desc: `${d} (${e.from_time} to ${e.to_time}) - ${e.reason}`,
+                        badge: 'Review',
+                        badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+                        icon: 'fa-solid fa-clock text-indigo-600',
+                        action: () => switchTab('requests')
+                    });
+                });
+
+                (leaves || []).filter(l => l.status === 'pending').forEach(l => {
+                    const d = l.date_formatted || l.date;
+                    notifs.push({
+                        type: 'leave',
+                        title: `Leave Request: ${l.agent_name}`,
+                        desc: `${l.leave_type.toUpperCase()} on ${d} - ${l.reason}`,
+                        badge: 'Review',
+                        badgeClass: 'bg-teal-100 text-teal-800 border-teal-300',
+                        icon: 'fa-solid fa-plane-departure text-teal-600',
+                        action: () => switchTab('requests')
+                    });
+                });
+            } else {
+                // Agent sees:
+                // 1. Pending incoming swaps requiring agreement
+                (swaps || []).filter(s => s.status === 'pending_peer' && s.target_agent_id === currentUser.id).forEach(s => {
+                    const reqDate = s.requester_date_formatted || s.requester_date;
+                    const tgtDate = s.target_date_formatted || s.target_date;
+                    notifs.push({
+                        type: 'swap_action',
+                        title: `Action Required: Swap from ${s.requester_name}!`,
+                        desc: `Offers ${reqDate} for your ${tgtDate}`,
+                        badge: 'Respond Now',
+                        badgeClass: 'bg-red-100 text-red-800 border-red-300 animate-pulse',
+                        icon: 'fa-solid fa-bell text-amber-500',
+                        action: () => switchTab('requests')
+                    });
+                });
+
+                // 2. Swaps decided (approved or rejected) for current agent
+                (swaps || []).filter(s => (s.requester_id === currentUser.id || s.target_agent_id === currentUser.id) && (s.status === 'approved' || s.status === 'rejected')).slice(0, 5).forEach(s => {
+                    const isApproved = s.status === 'approved';
+                    const otherName = s.requester_id === currentUser.id ? s.target_name : s.requester_name;
+                    notifs.push({
+                        type: 'swap_result',
+                        title: isApproved ? `Shift Swap Approved ✔️` : `Shift Swap Declined ❌`,
+                        desc: `Swap with ${otherName} for ${s.requester_date_formatted || s.requester_date}`,
+                        badge: isApproved ? 'Approved' : 'Declined',
+                        badgeClass: isApproved ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-red-100 text-red-800 border-red-300',
+                        icon: isApproved ? 'fa-solid fa-circle-check text-emerald-600' : 'fa-solid fa-circle-xmark text-red-600',
+                        action: () => switchTab('requests')
+                    });
+                });
+
+                // 3. Excuses decided for current agent
+                (excuses || []).filter(e => e.agent_id === currentUser.id && (e.status === 'approved' || e.status === 'rejected')).slice(0, 5).forEach(e => {
+                    const isApproved = e.status === 'approved';
+                    notifs.push({
+                        type: 'excuse_result',
+                        title: isApproved ? `Excuse Approved ✔️` : `Excuse Rejected ❌`,
+                        desc: `${e.date_formatted || e.date} (${e.from_time} - ${e.to_time})`,
+                        badge: isApproved ? 'Approved' : 'Rejected',
+                        badgeClass: isApproved ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-red-100 text-red-800 border-red-300',
+                        icon: isApproved ? 'fa-solid fa-circle-check text-emerald-600' : 'fa-solid fa-circle-xmark text-red-600',
+                        action: () => switchTab('requests')
+                    });
+                });
+
+                // 4. Leaves decided for current agent
+                (leaves || []).filter(l => l.agent_id === currentUser.id && (l.status === 'approved' || l.status === 'rejected')).slice(0, 5).forEach(l => {
+                    const isApproved = l.status === 'approved';
+                    notifs.push({
+                        type: 'leave_result',
+                        title: isApproved ? `Leave Approved ✔️` : `Leave Rejected ❌`,
+                        desc: `${l.date_formatted || l.date} (${l.leave_type})`,
+                        badge: isApproved ? 'Approved' : 'Rejected',
+                        badgeClass: isApproved ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-red-100 text-red-800 border-red-300',
+                        icon: isApproved ? 'fa-solid fa-circle-check text-emerald-600' : 'fa-solid fa-circle-xmark text-red-600',
+                        action: () => switchTab('requests')
+                    });
+                });
+            }
+
+            // Update badge & counter
+            let actionableCount = 0;
+            if (currentUser.role === 'manager') {
+                actionableCount = notifs.length;
+            } else {
+                actionableCount = (swaps || []).filter(s => s.status === 'pending_peer' && s.target_agent_id === currentUser.id).length;
+            }
+
+            if (actionableCount > 0) {
+                badge.classList.remove('hidden');
+                badge.innerText = actionableCount;
+                label.innerText = `${actionableCount} Action Required`;
+                label.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700";
+            } else if (notifs.length > 0) {
+                badge.classList.add('hidden');
+                label.innerText = `${notifs.length} Updates`;
+                label.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700";
+            } else {
+                badge.classList.add('hidden');
+                label.innerText = `0 New`;
+                label.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700";
+            }
+
+            // Render list items
+            if (notifs.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="p-6 text-center text-slate-400">
+                        <i class="fa-solid fa-bell-slash text-2xl mb-2 text-slate-300"></i>
+                        <p class="font-medium text-xs">No notifications right now</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = "";
+            notifs.forEach((n, idx) => {
+                html += `
+                    <div onclick="handleClickNotification(${idx})" class="p-3 rounded-xl border border-slate-100 hover:bg-slate-50 cursor-pointer transition flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <i class="${n.icon} text-sm"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-1 mb-0.5">
+                                <h5 class="text-xs font-bold text-slate-900 truncate">${n.title}</h5>
+                                <span class="text-[10px] font-bold px-1.5 py-0.2 rounded border shrink-0 ${n.badgeClass}">${n.badge}</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 line-clamp-2">${n.desc}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            listContainer.innerHTML = html;
+            window._currentNotifs = notifs;
+        }
+
+        function handleClickNotification(idx) {
+            const dropdown = document.getElementById("notifDropdown");
+            if (dropdown) dropdown.classList.add("hidden");
+            if (window._currentNotifs && window._currentNotifs[idx] && window._currentNotifs[idx].action) {
+                window._currentNotifs[idx].action();
+            } else {
+                switchTab('requests');
+            }
+        }
+
+        function toggleNotificationDropdown() {
+            const dropdown = document.getElementById("notifDropdown");
+            if (!dropdown) return;
+            dropdown.classList.toggle("hidden");
+        }
+
+        document.addEventListener("click", (e) => {
+            const dropdown = document.getElementById("notifDropdown");
+            const btn = document.getElementById("notifBellBtn");
+            if (!dropdown || !btn) return;
+            if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+                dropdown.classList.add("hidden");
+            }
+        });
+
+        function renderPeerBanner(swaps) {
+            const container = document.getElementById("peerSwapAlertContainer");
+            if (!container) return;
+            if (!currentUser || currentUser.role !== 'agent') {
+                container.innerHTML = "";
+                return;
+            }
+
+            const myPendingSwaps = (swaps || []).filter(s => s.status === 'pending_peer' && s.target_agent_id === currentUser.id);
+            if (myPendingSwaps.length === 0) {
+                container.innerHTML = "";
+                return;
+            }
+
+            let html = "";
+            myPendingSwaps.forEach(sw => {
+                const reqDate = sw.requester_date_formatted || sw.requester_date;
+                const tgtDate = sw.target_date_formatted || sw.target_date;
+                html += `
+                    <div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white p-4 md:p-5 rounded-2xl shadow-xl border border-blue-400/30 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-11 h-11 rounded-xl bg-white/20 text-white flex items-center justify-center text-xl shrink-0">
+                                <i class="fa-solid fa-repeat"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 text-[10px] font-black uppercase">Action Required</span>
+                                    <h4 class="font-bold text-sm">Shift Swap Request from ${sw.requester_name}!</h4>
+                                </div>
+                                <p class="text-xs text-blue-100 mt-1 leading-relaxed">
+                                    Offers you day off on <strong class="text-white bg-white/10 px-1.5 py-0.5 rounded">${reqDate}</strong> in exchange for your scheduled day off on <strong class="text-white bg-white/10 px-1.5 py-0.5 rounded">${tgtDate}</strong>.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto justify-end shrink-0">
+                            <button onclick="handlePeerSwapAction(${sw.id}, 'approved')" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 rounded-xl text-xs font-black shadow transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-check"></i> Agree & Forward to Manager
+                            </button>
+                            <button onclick="handlePeerSwapAction(${sw.id}, 'rejected')" class="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-xmark"></i> Decline
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderSwapsList(swaps) {
+            const container = document.getElementById("swapsListContainer");
+
+            // For Agent: ONLY display swaps involving the current agent!
+            // For Manager: display all team swaps!
+            const filteredSwaps = (currentUser && currentUser.role === 'agent')
+                ? (swaps || []).filter(s => s.requester_id === currentUser.id || s.target_agent_id === currentUser.id)
+                : (swaps || []);
+
+            if (filteredSwaps.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 py-6 text-center">No swap requests</p>`;
+                return;
+            }
+            container.innerHTML = "";
+            filteredSwaps.forEach(sw => {
+                let statusBadge = "";
+                if (sw.status === 'pending_peer') {
+                    if (currentUser && currentUser.id === sw.target_agent_id) {
+                        statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Awaiting Your Agreement 🕒</span>`;
+                    } else {
+                        statusBadge = `<span class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700">Awaiting Colleague Agreement</span>`;
+                    }
+                } else if (sw.status === 'pending_manager') {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300">Awaiting Manager (Telegram Alert Sent 📱)</span>`;
+                } else if (sw.status === 'approved') {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Approved & Applied Live ✔️</span>`;
+                } else {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-800">Declined ❌</span>`;
+                }
+
+                let actionBtns = "";
+                // Peer action
+                if (sw.status === 'pending_peer' && currentUser && currentUser.id === sw.target_agent_id) {
+                    actionBtns = `
+                        <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
+                            <button onclick="handlePeerSwapAction(${sw.id}, 'approved')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm">
+                                <i class="fa-solid fa-check"></i> Agree & Send to Manager
+                            </button>
+                            <button onclick="handlePeerSwapAction(${sw.id}, 'rejected')" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold">
+                                Decline
+                            </button>
+                        </div>
+                    `;
+                }
+                // Manager action
+                if (sw.status === 'pending_manager' && currentUser && currentUser.role === 'manager') {
+                    actionBtns = `
+                        <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
+                            <button onclick="handleManagerSwapAction(${sw.id}, 'approved')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm flex items-center gap-1">
+                                <i class="fa-solid fa-check"></i> Approve & Apply to Master Roster
+                            </button>
+                            <button onclick="handleManagerSwapAction(${sw.id}, 'rejected')" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold">
+                                Decline Swap
+                            </button>
+                        </div>
+                    `;
+                }
+
+                const reqDateDisplay = sw.requester_date_formatted || sw.requester_date;
+                const tgtDateDisplay = sw.target_date_formatted || sw.target_date;
+
+                container.innerHTML += `
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrow-right-arrow-left text-blue-600"></i>
+                                <span>${sw.requester_name}</span>
+                                <span class="text-slate-400">↔️</span>
+                                <span>${sw.target_name}</span>
+                            </span>
+                            ${statusBadge}
+                        </div>
+                        <div class="text-xs text-slate-600 space-y-1 bg-white p-2.5 rounded-lg border border-slate-100">
+                            <div><span class="text-slate-400">${sw.requester_name} gives up:</span> <strong class="text-slate-800">${reqDateDisplay}</strong></div>
+                            <div><span class="text-slate-400">${sw.target_name} gives up:</span> <strong class="text-slate-800">${tgtDateDisplay}</strong></div>
+                        </div>
+                        ${actionBtns}
+                    </div>
+                `;
+            });
+        }
+
+        function renderExcusesList(excuses) {
+            const container = document.getElementById("excusesListContainer");
+
+            // For Agent: ONLY display excuses belonging to the current agent!
+            // For Manager: display all team excuses!
+            const filteredExcuses = (currentUser && currentUser.role === 'agent')
+                ? (excuses || []).filter(e => e.agent_id === currentUser.id)
+                : (excuses || []);
+
+            if (filteredExcuses.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 py-6 text-center">No excuse requests</p>`;
+                return;
+            }
+            container.innerHTML = "";
+            filteredExcuses.forEach(ex => {
+                let statusBadge = ex.status === 'approved' ? 
+                    `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">Approved ✔️</span>` :
+                    (ex.status === 'pending' ? `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">Pending Review</span>` : `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800">Rejected</span>`);
+
+                let actionBtns = "";
+                if (ex.status === 'pending' && currentUser && currentUser.role === 'manager') {
+                    actionBtns = `
+                        <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                            <button onclick="handleManagerExcuseAction(${ex.id}, 'approved')" class="px-3.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold">Approve Excuse</button>
+                            <button onclick="handleManagerExcuseAction(${ex.id}, 'rejected')" class="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold">Reject</button>
+                        </div>
+                    `;
+                }
+
+                const dateDisplay = ex.date_formatted || ex.date;
+
+                container.innerHTML += `
+                    <div class="p-3.5 rounded-xl border border-slate-100 bg-slate-50 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-800">${ex.agent_name}</span>
+                            ${statusBadge}
+                        </div>
+                        <div class="text-xs text-slate-600">
+                            <b>${dateDisplay}</b> | Hours: <b>${ex.from_time}</b> to <b>${ex.to_time}</b>
+                        </div>
+                        <p class="text-xs text-slate-500 bg-white p-2 rounded-lg border border-slate-100">
+                            ${ex.reason}
+                        </p>
+                        ${actionBtns}
+                    </div>
+                `;
+            });
+        }
+
+        async function handlePeerSwapAction(id, status) {
+            try {
+                const res = await fetch(`/api/swaps/${id}/peer-action`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status })
+                });
+                if (res.ok) {
+                    if (status === 'approved') {
+                        alert("You agreed to the swap! Forwarded to Manager on Telegram with Day Names for final approval.");
+                    } else {
+                        alert("Swap request declined.");
+                    }
+                }
+                loadRequests();
+                loadMasterRoster();
+            } catch (err) {
+                alert("Error submitting peer action");
+            }
+        }
+
+        async function handleManagerSwapAction(id, status) {
+            await fetch(`/api/swaps/${id}/manager-action`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status })
+            });
+            loadRequests();
+            loadMasterRoster();
+        }
+
+        async function handleManagerExcuseAction(id, status) {
+            await fetch(`/api/excuses/${id}/manager-action`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status })
+            });
+            loadRequests();
+            loadLiveStatus();
+        }
+
+        function renderLeavesList(leaves) {
+            const container = document.getElementById("leavesListContainer");
+            if (!container) return;
+
+            // For Agent: ONLY display leaves belonging to the current agent!
+            // For Manager: display all team leaves!
+            const filteredLeaves = (currentUser && currentUser.role === 'agent')
+                ? (leaves || []).filter(l => l.agent_id === currentUser.id)
+                : (leaves || []);
+
+            if (filteredLeaves.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 py-6 text-center">No leave requests</p>`;
+                return;
+            }
+            container.innerHTML = "";
+
+            const leaveTypeNames = {
+                "annual": "Annual Leave (سنوية)",
+                "sick": "Sick Leave (مرضية)",
+                "emergency": "Emergency Leave (عارضة)",
+                "comp_off": "Compensatory Off (بدل راحة)"
+            };
+
+            filteredLeaves.forEach(lv => {
+                let statusBadge = lv.status === 'approved' ? 
+                    `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">Approved ✔️</span>` :
+                    (lv.status === 'pending' ? `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">Pending Review</span>` : `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800">Rejected ❌</span>`);
+
+                let actionBtns = "";
+                if (lv.status === 'pending' && currentUser && currentUser.role === 'manager') {
+                    actionBtns = `
+                        <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                            <button onclick="handleManagerLeaveAction(${lv.id}, 'approved')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1">
+                                <i class="fa-solid fa-check"></i> Approve Leave
+                            </button>
+                            <button onclick="handleManagerLeaveAction(${lv.id}, 'rejected')" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition">
+                                Reject
+                            </button>
+                        </div>
+                    `;
+                }
+
+                const dateDisplay = lv.date_formatted || lv.date;
+                const typeDisplay = leaveTypeNames[lv.leave_type] || lv.leave_type;
+
+                container.innerHTML += `
+                    <div class="p-3.5 rounded-xl border border-slate-100 bg-slate-50 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-800">${lv.agent_name}</span>
+                            ${statusBadge}
+                        </div>
+                        <div class="text-xs text-slate-600 flex items-center justify-between">
+                            <span><b>${dateDisplay}</b></span>
+                            <span class="px-2 py-0.5 rounded bg-teal-50 text-teal-700 font-semibold border border-teal-200 text-[10px]">${typeDisplay}</span>
+                        </div>
+                        <p class="text-xs text-slate-500 bg-white p-2 rounded-lg border border-slate-100">
+                            ${lv.reason}
+                        </p>
+                        ${actionBtns}
+                    </div>
+                `;
+            });
+        }
+
+        async function handleManagerLeaveAction(id, status) {
+            try {
+                const res = await fetch(`/api/leaves/${id}/manager-action`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status })
+                });
+                if (res.ok) {
+                    loadRequests();
+                    loadMasterRoster();
+                } else {
+                    alert("Action failed");
+                }
+            } catch (err) {
+                alert("Connection error");
+            }
+        }
+
+
+        // ==========================================
+        // TEAM MANAGEMENT & PASSWORDS
+        // ==========================================
+        async function loadTeam() {
+            try {
+                const res = await fetch("/api/agents");
+                const agents = await res.json();
+                cachedAgents = agents;
+                const tbody = document.getElementById("teamTableBody");
+                tbody.innerHTML = "";
+
+                // Populate Swap Target Dropdown while loading
+                const targetSelect = document.getElementById("swapTargetAgent");
+                targetSelect.innerHTML = "";
+
+                agents.forEach(ag => {
+                    if (ag.role === 'agent' && ag.id !== currentUser.id) {
+                        targetSelect.innerHTML += `<option value="${ag.id}">${ag.name} (${ag.code})</option>`;
+                    }
+
+                    const passDisplay = currentUser.role === 'manager' ? 
+                        `<span class="font-mono bg-slate-100 px-2.5 py-1 rounded-md text-xs font-bold tracking-wider">${ag.password}</span>` :
+                        `<span class="font-mono text-slate-400">••••••••</span>`;
+
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50/80 transition">
+                            <td class="p-4 font-bold text-slate-900">${ag.name}</td>
+                            <td class="p-4 font-mono text-xs font-bold text-blue-600">${ag.code}</td>
+                            <td class="p-4">${passDisplay}</td>
+                            <td class="p-4"><span class="px-2 py-0.5 rounded text-xs ${ag.role === 'manager' ? 'bg-purple-100 text-purple-800 font-bold' : 'bg-slate-100 text-slate-600'}">${ag.role.toUpperCase()}</span></td>
+                            <td class="p-4"><span class="w-2 h-2 rounded-full inline-block ${ag.is_active ? 'bg-emerald-500' : 'bg-red-500'} mr-1.5"></span> ${ag.is_active ? 'Active' : 'Disabled'}</td>
+                            <td class="p-4 text-center">
+                                ${currentUser.role === 'manager' && ag.role !== 'manager' ? 
+                                    `<button onclick="handleDeleteAgent(${ag.id})" class="text-red-500 hover:text-red-700 text-xs font-bold"><i class="fa-solid fa-trash"></i></button>` : '--'}
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Team load err:", err);
+            }
+        }
+
+        async function handleSelfPasswordChange(e) {
+            e.preventDefault();
+            const oldPass = document.getElementById("selfOldPass").value;
+            const newPass = document.getElementById("selfNewPass").value;
+
+            try {
+                const res = await fetch("/api/change-password", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ agent_id: currentUser.id, old_password: oldPass, new_password: newPass })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert("Password updated successfully!");
+                    document.getElementById("selfOldPass").value = "";
+                    document.getElementById("selfNewPass").value = "";
+                    loadTeam();
+                } else {
+                    alert(data.detail || "Password update failed");
+                }
+            } catch (err) {
+                alert("Connection error");
+            }
+        }
+
+        async function handleSubmitAddAgent(e) {
+            e.preventDefault();
+            const name = document.getElementById("newAgentName").value;
+            const code = document.getElementById("newAgentCode").value;
+            const password = document.getElementById("newAgentPassword").value;
+
+            try {
+                const res = await fetch("/api/agents", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name, code, password, role: "agent" })
+                });
+                if (res.ok) {
+                    closeModal("addAgentModal");
+                    loadTeam();
+                    loadMasterRoster();
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Account creation failed");
+                }
+            } catch (err) {
+                alert("Connection error");
+            }
+        }
+
+        async function handleDeleteAgent(id) {
+            if (!confirm("Are you sure you want to disable this agent account?")) return;
+            await fetch(`/api/agents/${id}`, { method: "DELETE" });
+            loadTeam();
+        }
+
+        // ==========================================
+        // HOLIDAYS & REPORTS
+        // ==========================================
+        async function loadHolidays() {
+            try {
+                const res = await fetch("/api/holidays");
+                const holidays = await res.json();
+                const grid = document.getElementById("holidaysListGrid");
+                grid.innerHTML = "";
+
+                Object.entries(holidays).forEach(([dt, h]) => {
+                    const badgeColor = h.multiplier === 3 ? "bg-pink-100 text-pink-800 border-pink-200" : "bg-amber-100 text-amber-800 border-amber-200";
+                    grid.innerHTML += `
+                        <div class="p-3 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between">
+                            <div>
+                                <h5 class="text-xs font-bold text-slate-800">${h.name}</h5>
+                                <span class="text-[11px] text-slate-400 font-mono">${dt}</span>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black border ${badgeColor}">
+                                ${h.multiplier}x Pay
+                            </span>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                console.error("Holidays err:", err);
+            }
+        }
+
+        function downloadExcelReport() {
+            const y = document.getElementById("exportYear").value;
+            const m = document.getElementById("exportMonth").value;
+            window.location.href = `/api/reports/monthly-excel?year=${y}&month=${m}`;
+        }
+
+        async function loadSettings() {
+            try {
+                const res = await fetch("/api/settings");
+                const s = await res.json();
+                if (s.telegram_bot_token) document.getElementById("settingBotToken").value = s.telegram_bot_token;
+                if (s.telegram_chat_id) document.getElementById("settingChatId").value = s.telegram_chat_id;
+
+                const badge = document.getElementById("telegramConnectionBadge");
+                if (badge) {
+                    if (s.telegram_chat_id) {
+                        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5";
+                        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Linked to Chat ID: ${s.telegram_chat_id}`;
+                    } else if (s.telegram_bot_token) {
+                        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1.5";
+                        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> Bot Token Linked (Press Start on bot)`;
+                    } else {
+                        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5";
+                        badge.innerHTML = `Not Configured`;
+                    }
+                }
+            } catch (err) {}
+        }
+
+        async function handleSaveSettings(e) {
+            e.preventDefault();
+            const token = document.getElementById("settingBotToken").value;
+            const chatId = document.getElementById("settingChatId").value;
+            await fetch("/api/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ telegram_bot_token: token, telegram_chat_id: chatId })
+            });
+            alert("Telegram settings saved successfully!");
+            loadSettings();
+        }
+
+        async function handleTestTelegram() {
+            try {
+                const res = await fetch("/api/telegram/test", { method: "POST" });
+                const data = await res.json();
+                if (data.success) {
+                    alert("Test notification sent successfully to your Telegram account!");
+                } else {
+                    alert(data.message || "Failed to send test notification.");
+                }
+            } catch (err) {
+                alert("Connection error while sending test notification.");
+            }
+        }
+
+        // ==========================================
+        // MODAL HELPERS & FORM SUBMISSIONS
+        // ==========================================
+        async function openSwapModal() {
+            const targetSelect = document.getElementById("swapTargetAgent");
+            targetSelect.innerHTML = "";
+
+            if (cachedAgents && cachedAgents.length > 0) {
+                cachedAgents.forEach(ag => {
+                    if (ag.role === 'agent' && (!currentUser || ag.id !== currentUser.id)) {
+                        targetSelect.innerHTML += `<option value="${ag.id}">${ag.name} (${ag.code})</option>`;
+                    }
+                });
+            } else {
+                try {
+                    const res = await fetch("/api/agents");
+                    cachedAgents = await res.json();
+                    cachedAgents.forEach(ag => {
+                        if (ag.role === 'agent' && (!currentUser || ag.id !== currentUser.id)) {
+                            targetSelect.innerHTML += `<option value="${ag.id}">${ag.name} (${ag.code})</option>`;
+                        }
+                    });
+                } catch (e) {}
+            }
+
+            document.getElementById("swapModal").classList.remove("hidden");
+
+            // Auto-fill requester's rotating off-days
+            await loadMyUpcomingOffDays();
+
+            // Auto-fill colleague's rotating off-days
+            await onSwapTargetAgentChanged();
+        }
+
+        async function loadMyUpcomingOffDays() {
+            if (!currentUser) return;
+            const hintEl = document.getElementById("myOffDayHint");
+            const pillsEl = document.getElementById("myOffDaysPills");
+            pillsEl.innerHTML = "";
+            hintEl.classList.add("hidden");
+
+            try {
+                const res = await fetch(`/api/schedule/off-days/${currentUser.id}`);
+                const offDays = await res.json();
+                if (offDays && offDays.length > 0) {
+                    document.getElementById("swapReqDate").value = offDays[0].date;
+                    hintEl.innerText = `Scheduled: ${offDays[0].formatted}`;
+                    hintEl.classList.remove("hidden");
+
+                    let pillsHtml = "";
+                    offDays.forEach((od, idx) => {
+                        const activeClass = idx === 0 ? "bg-blue-600 text-white font-bold" : "bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold";
+                        pillsHtml += `<button type="button" onclick="selectMyOffDay('${od.date}', '${od.formatted}', this)" class="px-2.5 py-1 text-[11px] rounded-lg border border-blue-200 transition ${activeClass}">${od.formatted}</button>`;
+                    });
+                    pillsEl.innerHTML = pillsHtml;
+                } else {
+                    document.getElementById("swapReqDate").value = new Date().toISOString().split('T')[0];
+                }
+            } catch (err) {
+                console.error("Failed to load my off-days:", err);
+            }
+        }
+
+        function selectMyOffDay(dateStr, formattedStr, btn) {
+            document.getElementById("swapReqDate").value = dateStr;
+            const hintEl = document.getElementById("myOffDayHint");
+            hintEl.innerText = `Scheduled: ${formattedStr}`;
+            hintEl.classList.remove("hidden");
+
+            const pills = document.querySelectorAll("#myOffDaysPills button");
+            pills.forEach(p => {
+                p.className = "px-2.5 py-1 text-[11px] rounded-lg border border-blue-200 transition bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold";
+            });
+            if (btn) {
+                btn.className = "px-2.5 py-1 text-[11px] rounded-lg border border-blue-200 transition bg-blue-600 text-white font-bold";
+            }
+        }
+
+        async function onSwapTargetAgentChanged() {
+            const targetSelect = document.getElementById("swapTargetAgent");
+            const targetId = targetSelect.value;
+            const hintEl = document.getElementById("targetOffDayHint");
+            const pillsEl = document.getElementById("targetOffDaysPills");
+            pillsEl.innerHTML = "";
+            hintEl.classList.add("hidden");
+
+            if (!targetId) return;
+
+            try {
+                const res = await fetch(`/api/schedule/off-days/${targetId}`);
+                const offDays = await res.json();
+                if (offDays && offDays.length > 0) {
+                    // Auto-fill colleague's first rotating off-day!
+                    document.getElementById("swapTargetDate").value = offDays[0].date;
+                    hintEl.innerText = `Colleague Off: ${offDays[0].formatted}`;
+                    hintEl.classList.remove("hidden");
+
+                    let pillsHtml = "";
+                    offDays.forEach((od, idx) => {
+                        const activeClass = idx === 0 ? "bg-emerald-600 text-white font-bold" : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold";
+                        pillsHtml += `<button type="button" onclick="selectTargetOffDay('${od.date}', '${od.formatted}', this)" class="px-2.5 py-1 text-[11px] rounded-lg border border-emerald-200 transition ${activeClass}">${od.formatted}</button>`;
+                    });
+                    pillsEl.innerHTML = pillsHtml;
+                } else {
+                    document.getElementById("swapTargetDate").value = new Date().toISOString().split('T')[0];
+                    hintEl.innerText = "No rotating off-days found (select date manually)";
+                    hintEl.classList.remove("hidden");
+                }
+            } catch (err) {
+                console.error("Failed to load colleague's off-days:", err);
+            }
+        }
+
+        function selectTargetOffDay(dateStr, formattedStr, btn) {
+            document.getElementById("swapTargetDate").value = dateStr;
+            const hintEl = document.getElementById("targetOffDayHint");
+            hintEl.innerText = `Colleague Off: ${formattedStr}`;
+            hintEl.classList.remove("hidden");
+
+            const pills = document.querySelectorAll("#targetOffDaysPills button");
+            pills.forEach(p => {
+                p.className = "px-2.5 py-1 text-[11px] rounded-lg border border-emerald-200 transition bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold";
+            });
+            if (btn) {
+                btn.className = "px-2.5 py-1 text-[11px] rounded-lg border border-emerald-200 transition bg-emerald-600 text-white font-bold";
+            }
+        }
+
+        function openExcuseModal() {
+            document.getElementById("excuseDate").value = new Date().toISOString().split('T')[0];
+            document.getElementById("excuseReason").value = "";
+            document.getElementById("excuseModal").classList.remove("hidden");
+        }
+
+        function openLeaveModal() {
+            document.getElementById("leaveDate").value = new Date().toISOString().split('T')[0];
+            document.getElementById("leaveReason").value = "";
+            document.getElementById("leaveModal").classList.remove("hidden");
+        }
+
+        function openChangePasswordModal() {
+            document.getElementById("modalOldPass").value = "";
+            document.getElementById("modalNewPass").value = "";
+            document.getElementById("changePasswordModal").classList.remove("hidden");
+        }
+
+        function openAddAgentModal() {
+            document.getElementById("addAgentModal").classList.remove("hidden");
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add("hidden");
+        }
+
+        async function handleSubmitSwap(e) {
+            e.preventDefault();
+            const targetId = document.getElementById("swapTargetAgent").value;
+            const reqDate = document.getElementById("swapReqDate").value;
+            const tgtDate = document.getElementById("swapTargetDate").value;
+
+            try {
+                const res = await fetch("/api/swaps/request", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        requester_id: currentUser.id,
+                        target_agent_id: parseInt(targetId),
+                        requester_date: reqDate,
+                        target_date: tgtDate
+                    })
+                });
+                if (res.ok) {
+                    closeModal("swapModal");
+                    loadRequests();
+                    alert("Swap request sent to colleague! When colleague agrees, manager will be notified on Telegram.");
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Failed to submit swap request");
+                }
+            } catch (err) {
+                alert("Connection error while submitting swap");
+            }
+        }
+
+        async function handleSubmitExcuse(e) {
+            e.preventDefault();
+            const date = document.getElementById("excuseDate").value;
+            const from_time = document.getElementById("excuseFromTime").value;
+            const to_time = document.getElementById("excuseToTime").value;
+            const reason = document.getElementById("excuseReason").value;
+
+            try {
+                const res = await fetch("/api/excuses/request", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        agent_id: currentUser.id,
+                        date,
+                        from_time,
+                        to_time,
+                        reason
+                    })
+                });
+                if (res.ok) {
+                    closeModal("excuseModal");
+                    loadRequests();
+                    alert("Excuse request submitted to Manager via Telegram! 📱");
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Failed to submit excuse request");
+                }
+            } catch (err) {
+                alert("Connection error while submitting excuse");
+            }
+        }
+
+        async function handleSubmitLeave(e) {
+            e.preventDefault();
+            const date = document.getElementById("leaveDate").value;
+            const leave_type = document.getElementById("leaveType").value;
+            const reason = document.getElementById("leaveReason").value;
+
+            try {
+                const res = await fetch("/api/leaves/request", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        agent_id: currentUser.id,
+                        date,
+                        leave_type,
+                        reason
+                    })
+                });
+                if (res.ok) {
+                    closeModal("leaveModal");
+                    loadRequests();
+                    alert("Leave request submitted to Manager via Telegram! 📱");
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Failed to submit leave request");
+                }
+            } catch (err) {
+                alert("Connection error while submitting leave");
+            }
+        }
+
+        async function handleModalPasswordChange(e) {
+            e.preventDefault();
+            const oldPass = document.getElementById("modalOldPass").value;
+            const newPass = document.getElementById("modalNewPass").value;
+
+            try {
+                const res = await fetch("/api/change-password", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        agent_id: currentUser.id,
+                        old_password: oldPass,
+                        new_password: newPass
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert("Password updated successfully!");
+                    closeModal("changePasswordModal");
+                    if (currentUser.role === 'manager') {
+                        loadTeam();
+                    }
+                } else {
+                    alert(data.detail || "Password update failed");
+                }
+            } catch (err) {
+                alert("Connection error while updating password");
+            }
+        }
+    </script>
+</body>
+</html>
