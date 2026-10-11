@@ -7,6 +7,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 8050
+# Permissions for SQLite read/write on Hugging Face Spaces
+RUN chmod -R 777 /app
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8050"]
+EXPOSE 7860
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
